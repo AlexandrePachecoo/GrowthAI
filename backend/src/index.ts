@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { runMigrations } from './migrate';
+import registerRoutes from './modules/auth/register/register.routes';
+import loginRoutes from './modules/auth/login/login.routes';
+import campaignRoutes from './modules/campaign/campaign.routes';
 
 dotenv.config();
 
@@ -10,10 +14,21 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+app.use('/auth/register', registerRoutes);
+app.use('/auth/login', loginRoutes);
+app.use('/campaign', campaignRoutes);
+
 app.get('/', (req, res) => {
   res.json({ message: 'GrowthAi API running!' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+runMigrations()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Migration failed:', err);
+    process.exit(1);
+  });
