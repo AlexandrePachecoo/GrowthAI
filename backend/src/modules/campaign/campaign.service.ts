@@ -28,6 +28,12 @@ export async function generateCampaignCopy(input: CampaignInput): Promise<Campai
         role: 'system',
         content: `Você é um especialista em marketing digital e copywriting.
 Gere copies persuasivos e criativos para campanhas de anúncios.
+
+REGRAS OBRIGATÓRIAS:
+- Use APENAS as informações fornecidas pelo usuário. Nunca invente benefícios, prêmios, promoções ou funcionalidades que não foram mencionados.
+- Se uma informação não foi fornecida, não a inclua na copy.
+- Seja criativo na forma de escrever, mas fiel aos fatos fornecidos.
+
 Sempre responda em JSON com os campos: headline, bodyText, cta, hashtags (array de strings), imagePrompt.`,
       },
       {
