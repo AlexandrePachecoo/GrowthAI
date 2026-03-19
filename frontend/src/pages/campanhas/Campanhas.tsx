@@ -1,62 +1,169 @@
+import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import './Campanhas.css';
 
-const campanhas = [
-  { id: 1, name: 'Campanha A', platform: 'Instagram', status: 'ativa', ctr: '2,4%', cpc: 'R$0,50', gasto: 'R$40', orcamento: 'R$800' },
-  { id: 2, name: 'Campanha B', platform: 'Google Ads', status: 'ativa', ctr: '1,8%', cpc: 'R$0,70', gasto: 'R$35', orcamento: 'R$700' },
-  { id: 3, name: 'Campanha C', platform: 'Meta Ads', status: 'pausada', ctr: '1,2%', cpc: 'R$0,90', gasto: 'R$25', orcamento: 'R$500' },
-];
+interface CopyData {
+  headline: string;
+  bodyText: string;
+  cta: string;
+  hashtags: string[];
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  product: string;
+  platforms: string[];
+  copies: Record<string, CopyData>;
+  images: Record<string, string | string[]>;
+  created_at: string;
+}
 
 export default function Campanhas() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Campaign | null>(null);
+  const [activeTab, setActiveTab] = useState('');
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  async function fetchCampaigns() {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3001/campaigns', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setCampaigns(data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const token = localStorage.getItem('token');
+    await fetch(`http://localhost:3001/campaigns/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setCampaigns(prev => prev.filter(c => c.id !== id));
+    if (selected?.id === id) setSelected(null);
+  }
+
+  function openCampaign(c: Campaign) {
+    setSelected(c);
+    setActiveTab(c.platforms[0]);
+  }
+
   return (
     <Layout>
       <div className="campanhas">
         <div className="page-header">
           <div>
             <h1>Campanhas</h1>
-            <p className="page-subtitle">Gerencie suas campanhas ativas</p>
+            <p className="page-subtitle">Suas campanhas salvas</p>
           </div>
-          <button className="btn-new">+ Nova Campanha</button>
         </div>
 
-        <div className="campaigns-table">
-          <div className="table-header">
-            <span>Nome</span>
-            <span>Plataforma</span>
-            <span>Status</span>
-            <span>CTR</span>
-            <span>CPC</span>
-            <span>Gasto</span>
-            <span>Orçamento</span>
-            <span>Ações</span>
-          </div>
+        {loading && <p className="loading-text">Carregando...</p>}
 
-          {campanhas.map(c => (
-            <div key={c.id} className="table-row">
-              <span className="campaign-name">{c.name}</span>
-              <span className="platform-badge">{c.platform}</span>
-              <span className={`status-badge ${c.status}`}>{c.status}</span>
-              <span>{c.ctr}</span>
-              <span>{c.cpc}</span>
-              <span>{c.gasto}</span>
-              <span>{c.orcamento}</span>
-              <div className="actions">
-                <button className="action-btn">✎</button>
-                <button className="action-btn danger">✕</button>
-              </div>
+        {!loading && campaigns.length === 0 && (
+          <div className="empty-campaigns">
+            <span>✦</span>
+            <p>Nenhuma campanha salva ainda. Gere criativos e salve uma campanha.</p>
+          </div>
+        )}
+
+        {!loading && campaigns.length > 0 && (
+          <div className="campaigns-table">
+            <div className="table-header">
+              <span>Nome</span>
+              <span>Produto</span>
+              <span>Plataformas</span>
+              <span>Data</span>
+              <span>Ações</span>
             </div>
-          ))}
-        </div>
-
-        <div className="insight-card">
-          <div className="insight-icon">✦</div>
-          <div>
-            <p className="insight-title">Insight da IA · GrowthAi</p>
-            <p className="insight-text">
-              A <strong>Campanha C</strong> está pausada há 2 dias. Com base no histórico, reativá-la às 18h pode aumentar o CTR em até 15%.
-            </p>
+            {campaigns.map(c => (
+              <div key={c.id} className="table-row" onClick={() => openCampaign(c)}>
+                <span className="campaign-name">{c.name}</span>
+                <span className="campaign-product">{c.product}</span>
+                <div className="platforms-list">
+                  {c.platforms.map(p => (
+                    <span key={p} className="platform-badge">{p.replace('_', ' ')}</span>
+                  ))}
+                </div>
+                <span className="campaign-date">
+                  {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                </span>
+                <div className="actions" onClick={e => e.stopPropagation()}>
+                  <button className="action-btn" onClick={() => openCampaign(c)}>Ver</button>
+                  <button className="action-btn danger" onClick={() => handleDelete(c.id)}>✕</button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+
+        {selected && (
+          <div className="modal-overlay" onClick={() => setSelected(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h2>{selected.name}</h2>
+                  <p className="modal-product">{selected.product}</p>
+                </div>
+                <button className="modal-close" onClick={() => setSelected(null)}>✕</button>
+              </div>
+
+              <div className="modal-tabs">
+                {selected.platforms.map(p => (
+                  <button
+                    key={p}
+                    className={`result-tab ${activeTab === p ? 'active' : ''}`}
+                    onClick={() => setActiveTab(p)}
+                  >
+                    {p.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              {selected.copies[activeTab] && (
+                <div className="modal-content">
+                  {selected.images[activeTab] && (
+                    <div className="modal-images">
+                      {(Array.isArray(selected.images[activeTab])
+                        ? selected.images[activeTab] as string[]
+                        : [selected.images[activeTab] as string]
+                      ).map((src, i) => (
+                        <img key={i} src={src} alt={`criativo ${i + 1}`} className="modal-image" />
+                      ))}
+                    </div>
+                  )}
+                  <div className="modal-copy">
+                    <div className="copy-block">
+                      <label>Headline</label>
+                      <p>{selected.copies[activeTab].headline}</p>
+                    </div>
+                    <div className="copy-block">
+                      <label>Texto</label>
+                      <p>{selected.copies[activeTab].bodyText}</p>
+                    </div>
+                    <div className="copy-block">
+                      <label>CTA</label>
+                      <p>{selected.copies[activeTab].cta}</p>
+                    </div>
+                    <div className="copy-block">
+                      <label>Hashtags</label>
+                      <p className="hashtags">{selected.copies[activeTab].hashtags?.join(' ')}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
