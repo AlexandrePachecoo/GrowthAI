@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth';
-import { saveCampaign, listCampaigns, deleteCampaign } from './campaigns.service';
+import { saveCampaign, listCampaigns, deleteCampaign, addExternalCreative } from './campaigns.service';
 
 export async function save(req: AuthRequest, res: Response) {
   const { name, product, platforms, copies, images } = req.body;
@@ -32,6 +32,23 @@ export async function remove(req: AuthRequest, res: Response) {
   try {
     await deleteCampaign(id as string, req.userId!);
     res.status(204).send();
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Erro interno' });
+  }
+}
+
+export async function addCreative(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const { platform, imageData } = req.body;
+
+  if (!platform || !imageData) {
+    res.status(400).json({ error: 'Campos obrigatórios: platform, imageData' });
+    return;
+  }
+
+  try {
+    const campaign = await addExternalCreative(id as string, req.userId!, platform, imageData);
+    res.json(campaign);
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Erro interno' });
   }

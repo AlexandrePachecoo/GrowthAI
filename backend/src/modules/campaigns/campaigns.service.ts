@@ -36,3 +36,24 @@ export async function deleteCampaign(id: string, userId: string) {
     [id, userId]
   );
 }
+
+export async function addExternalCreative(id: string, userId: string, platform: string, imageData: string) {
+  const { rows } = await pool.query(
+    `SELECT images FROM campaigns WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+  if (!rows[0]) throw new Error('Campanha não encontrada');
+
+  const images = rows[0].images ?? {};
+  const existing = images[platform];
+  const currentList: string[] = Array.isArray(existing) ? existing : existing ? [existing] : [];
+  currentList.push(imageData);
+  images[platform] = currentList;
+
+  const { rows: updated } = await pool.query(
+    `UPDATE campaigns SET images = $1 WHERE id = $2 AND user_id = $3
+     RETURNING id, name, product, platforms, copies, images, created_at`,
+    [JSON.stringify(images), id, userId]
+  );
+  return updated[0];
+}
