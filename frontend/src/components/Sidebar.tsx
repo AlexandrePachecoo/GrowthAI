@@ -5,6 +5,7 @@ const menuItems = [
   { label: 'Dashboard', path: '/dashboard', icon: '▦' },
   { label: 'Criativos', path: '/criativos', icon: '✦' },
   { label: 'Campanhas', path: '/campanhas', icon: '◈' },
+  { label: 'Integrações', path: '/integracoes', icon: '⇌' },
 ];
 
 interface SidebarProps {

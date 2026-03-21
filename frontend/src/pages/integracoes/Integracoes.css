@@ -1,0 +1,91 @@
+.integracoes { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.page-subtitle { color: #888; font-size: 0.85rem; margin: 0.25rem 0 0; }
+
+/* Toast */
+.toast {
+  position: fixed; top: 1.25rem; right: 1.25rem; z-index: 999;
+  background: #111; color: #fff;
+  padding: 0.75rem 1.25rem; border-radius: 8px;
+  font-size: 0.875rem; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Grid */
+.integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+}
+
+/* Card */
+.integration-card {
+  background: #fff; border: 1px solid #eee; border-radius: 12px;
+  padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;
+}
+.integration-card.coming-soon { opacity: 0.5; pointer-events: none; }
+
+.integration-header { display: flex; align-items: center; gap: 1rem; }
+
+.integration-logo {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.meta-logo { background: #1877f2; }
+.google-logo { background: #ea4335; }
+.tiktok-logo { background: #010101; }
+
+.integration-header h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.integration-desc { margin: 0.2rem 0 0; font-size: 0.8rem; color: #888; }
+
+.integration-badge {
+  margin-left: auto; padding: 0.25rem 0.7rem;
+  border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+}
+.integration-badge.connected { background: #e8f5e9; color: #2e7d32; }
+.integration-badge.disconnected { background: #f5f5f5; color: #888; }
+.integration-badge.soon { background: #fff3e0; color: #e65100; }
+
+/* Connect button */
+.btn-connect {
+  width: 100%; padding: 0.65rem; border-radius: 8px;
+  background: #1877f2; color: #fff; font-weight: 600; font-size: 0.875rem;
+  border: none; cursor: pointer; transition: background 0.15s;
+}
+.btn-connect:hover { background: #1565c0; }
+.btn-connect.loading { opacity: 0.7; cursor: not-allowed; }
+
+/* Details */
+.integration-details { display: flex; flex-direction: column; gap: 1rem; }
+.token-expiry { font-size: 0.78rem; color: #aaa; margin: 0; }
+
+.ad-accounts-section { display: flex; flex-direction: column; gap: 0.5rem; }
+.ad-accounts-section label { font-size: 0.8rem; font-weight: 600; color: #555; }
+.loading-text { font-size: 0.8rem; color: #aaa; margin: 0; }
+
+.ad-accounts-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.ad-account-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 0.75rem; border-radius: 8px;
+  border: 1px solid #eee; background: #fafafa;
+  cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s;
+}
+.ad-account-item:hover { border-color: #1877f2; background: #f0f7ff; }
+.ad-account-item.selected { border-color: #1877f2; background: #e8f0fe; }
+.ad-account-item:disabled { opacity: 0.6; cursor: not-allowed; }
+.account-name { font-size: 0.875rem; font-weight: 500; flex: 1; }
+.account-id { font-size: 0.75rem; color: #aaa; }
+.account-check { color: #1877f2; font-weight: 700; margin-left: auto; }
+
+/* Disconnect button */
+.btn-disconnect {
+  width: 100%; padding: 0.6rem; border-radius: 8px;
+  background: transparent; color: #e53935; font-size: 0.8rem; font-weight: 500;
+  border: 1px solid #ffcdd2; cursor: pointer; transition: background 0.15s;
+}
+.btn-disconnect:hover { background: #ffebee; }
+.btn-disconnect.loading { opacity: 0.6; cursor: not-allowed; }

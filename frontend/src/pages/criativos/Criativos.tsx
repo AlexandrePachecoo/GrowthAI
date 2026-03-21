@@ -23,7 +23,6 @@ interface CampaignOutput {
   bodyText: string;
   cta: string;
   hashtags: string[];
-  imagePrompt: string;
 }
 
 export default function Criativos() {
@@ -36,22 +35,10 @@ export default function Criativos() {
     tone: 'casual',
   });
 
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
-
   const [results, setResults] = useState<Record<string, CampaignOutput> | null>(null);
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const [selectedImagePlatforms, setSelectedImagePlatforms] = useState<string[]>([]);
-  // variants: Record<platform, string[]> — 5 images each
-  const [variants, setVariants] = useState<Record<string, string[]> | null>(null);
-  // picked: Record<platform, number[]> — up to 2 selected indices per platform
-  const [picked, setPicked] = useState<Record<string, number[]>>({});
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState('');
-
-  const [lightbox, setLightbox] = useState<string | null>(null);
 
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -63,23 +50,6 @@ export default function Criativos() {
       const next = has ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p];
       return { ...prev, platforms: next.length ? next : [p] };
     });
-  }
-
-  function handleReferenceImageFiles(files: FileList | null) {
-    if (!files) return;
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        setReferenceImages(prev => [...prev, dataUrl]);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function removeReferenceImage(index: number) {
-    setReferenceImages(prev => prev.filter((_, i) => i !== index));
   }
 
   async function handleGenerate() {
@@ -95,9 +65,6 @@ export default function Criativos() {
       if (!res.ok) throw new Error(data.error);
       setResults(data);
       setActiveTab(Object.keys(data)[0]);
-      setSelectedImagePlatforms(Object.keys(data));
-      setVariants(null);
-      setPicked({});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar');
     } finally {
@@ -105,32 +72,11 @@ export default function Criativos() {
     }
   }
 
-  function togglePick(platform: string, index: number) {
-    setPicked(prev => {
-      const current = prev[platform] ?? [];
-      if (current.includes(index)) {
-        return { ...prev, [platform]: current.filter(i => i !== index) };
-      }
-      if (current.length >= 2) return prev; // max 2
-      return { ...prev, [platform]: [...current, index] };
-    });
-  }
-
   async function handleSaveCampaign() {
     if (!results || !saveName.trim()) return;
     setSaveLoading(true);
     try {
       const token = localStorage.getItem('token');
-
-      // Build images map: platform → array of picked variants
-      const images: Record<string, string[]> = {};
-      if (variants) {
-        Object.keys(variants).forEach(p => {
-          const indices = picked[p] ?? [];
-          if (indices.length > 0) images[p] = indices.map(i => variants[p][i]);
-        });
-      }
-
       const res = await fetch('http://localhost:3001/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -139,7 +85,7 @@ export default function Criativos() {
           product: form.product,
           platforms: Object.keys(results),
           copies: results,
-          images,
+          images: {},
         }),
       });
       if (!res.ok) throw new Error('Erro ao salvar');
@@ -149,39 +95,6 @@ export default function Criativos() {
       // silently fail
     } finally {
       setSaveLoading(false);
-    }
-  }
-
-  async function handleGenerateImages() {
-    if (!results) return;
-    setImageError('');
-    setImageLoading(true);
-    setVariants(null);
-    setPicked({});
-    try {
-      const copies: Record<string, CampaignOutput> = {};
-      selectedImagePlatforms.forEach(p => { copies[p] = results[p]; });
-
-      const res = await fetch('http://localhost:3001/campaign/generate-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platforms: selectedImagePlatforms,
-          copies,
-          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setVariants(data); // Record<platform, string[]>
-      // pre-select first variant for each platform
-      const initial: Record<string, number[]> = {};
-      selectedImagePlatforms.forEach(p => { initial[p] = [0]; });
-      setPicked(initial);
-    } catch (err: unknown) {
-      setImageError(err instanceof Error ? err.message : 'Erro ao gerar imagens');
-    } finally {
-      setImageLoading(false);
     }
   }
 
@@ -260,43 +173,6 @@ export default function Criativos() {
               </div>
             </div>
 
-            <div className="field">
-              <label>Imagens de referência <span className="label-hint">(logo, cores, estilo…)</span></label>
-              <div
-                className="upload-area"
-                onClick={() => document.getElementById('ref-image-input')?.click()}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); handleReferenceImageFiles(e.dataTransfer.files); }}
-              >
-                <input
-                  id="ref-image-input"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={e => handleReferenceImageFiles(e.target.files)}
-                />
-                {referenceImages.length === 0 ? (
-                  <p>Clique ou arraste imagens aqui</p>
-                ) : (
-                  <div className="upload-thumbnails">
-                    {referenceImages.map((src, i) => (
-                      <div key={i} className="upload-thumb">
-                        <img src={src} alt={`ref-${i}`} />
-                        <button
-                          type="button"
-                          className="thumb-remove"
-                          onClick={e => { e.stopPropagation(); removeReferenceImage(i); }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {error && <p className="error">{error}</p>}
 
             <button className={`btn-generate ${loading ? 'loading' : ''}`} onClick={handleGenerate} disabled={loading}>
@@ -333,32 +209,14 @@ export default function Criativos() {
                   ))}
                 </div>
 
-                <div className="image-gen-section">
-                  <span className="image-gen-label">Gerar criativos para:</span>
-                  <div className="platform-toggles">
-                    {Object.keys(results).map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        className={`platform-pill ${selectedImagePlatforms.includes(p) ? 'active' : ''}`}
-                        onClick={() =>
-                          setSelectedImagePlatforms(prev =>
-                            prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
-                          )
-                        }
-                      >
-                        {p.replace('_', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                  {imageError && <p className="error">{imageError}</p>}
-                  <button
-                    className={`btn-generate btn-generate-images ${imageLoading ? 'loading' : ''}`}
-                    onClick={handleGenerateImages}
-                    disabled={imageLoading || selectedImagePlatforms.length === 0}
-                  >
-                    {imageLoading ? 'Gerando criativos...' : '✦ Gerar Criativos'}
-                  </button>
+                <div className="maintenance-notice">
+                  <span className="maintenance-icon">🚧</span>
+                  <p>A geração de criativos visuais está em manutenção. Em breve estará disponível novamente.</p>
+                </div>
+
+                <div className="maintenance-notice" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                  <span className="maintenance-icon">🖼️</span>
+                  <p style={{ color: '#15803d' }}>Você pode adicionar criativos feitos fora do site direto nas suas campanhas salvas. Acesse <strong>Campanhas</strong> e clique em <strong>+ Criativo</strong>.</p>
                 </div>
 
                 <div className="save-section">
@@ -395,39 +253,6 @@ export default function Criativos() {
                       <label>Hashtags</label>
                       <p className="hashtags">{results[activeTab].hashtags.join(' ')}</p>
                     </div>
-                    <div className="copy-block">
-                      <label>Prompt para imagem</label>
-                      <p className="image-prompt">{results[activeTab].imagePrompt}</p>
-                    </div>
-                    {variants && variants[activeTab] && (
-                      <div className="copy-block">
-                        <label>
-                          Escolha até 2 criativos
-                          <span className="label-hint"> ({(picked[activeTab] ?? []).length}/2 selecionados)</span>
-                        </label>
-                        <div className="variants-grid">
-                          {variants[activeTab].map((src, i) => {
-                            const isSelected = (picked[activeTab] ?? []).includes(i);
-                            const isDisabled = !isSelected && (picked[activeTab] ?? []).length >= 2;
-                            return (
-                              <div
-                                key={i}
-                                className={`variant-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
-                                onClick={() => !isDisabled && togglePick(activeTab, i)}
-                              >
-                                <img src={src} alt={`variante ${i + 1}`} />
-                                {isSelected && <div className="variant-check">✓</div>}
-                                <button
-                                  className="variant-zoom"
-                                  onClick={e => { e.stopPropagation(); setLightbox(src); }}
-                                  title="Ver maior"
-                                >⤢</button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </>
@@ -435,14 +260,6 @@ export default function Criativos() {
           </div>
         </div>
       </div>
-      {lightbox && (
-        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
-          <div className="lightbox-box" onClick={e => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
-            <img src={lightbox} alt="criativo" className="lightbox-img" />
-          </div>
-        </div>
-      )}
     </Layout>
   );
 }
