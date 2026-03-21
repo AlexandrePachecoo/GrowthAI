@@ -1,13 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactElement } from 'react';
 import Landing from './pages/landing/Landing';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
 import Criativos from './pages/criativos/Criativos';
 import Campanhas from './pages/campanhas/Campanhas';
 import Integracoes from './pages/integracoes/Integracoes';
 
-function PrivateRoute({ children }: { children: JSX.Element }) {
+function PrivateRoute({ children }: { children: ReactElement }) {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/login" replace />;
 }
