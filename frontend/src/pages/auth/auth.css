@@ -33,18 +33,18 @@
   gap: 1.25rem;
 }
 
-.field {
+.auth-card .field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.field label {
+.auth-card .field label {
   font-size: 0.875rem;
   color: #ccc;
 }
 
-.field input {
+.auth-card .field input {
   background: #111;
   border: 1px solid #333;
   border-radius: 8px;
@@ -55,7 +55,7 @@
   transition: border-color 0.2s;
 }
 
-.field input:focus {
+.auth-card .field input:focus {
   border-color: #646cff;
 }
 

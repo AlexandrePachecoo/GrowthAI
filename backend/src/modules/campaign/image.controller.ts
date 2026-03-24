@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { generateCampaignImages, GenerateImagesInput } from './image.service';
 
 export async function generateImages(req: Request, res: Response) {
-  const { platforms, copies, referenceImages } = req.body as GenerateImagesInput;
+  const { platforms, copies, format, userLogo, userImages, userPalette, referenceImages, product, brand } = req.body as GenerateImagesInput;
 
   if (!platforms?.length || !copies || Object.keys(copies).length === 0) {
     res.status(400).json({
@@ -18,7 +18,7 @@ export async function generateImages(req: Request, res: Response) {
   }
 
   try {
-    const result = await generateCampaignImages({ platforms, copies, referenceImages });
+    const result = await generateCampaignImages({ platforms, copies, format, userLogo, userImages, userPalette, referenceImages, product, brand });
     res.json(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro interno';
