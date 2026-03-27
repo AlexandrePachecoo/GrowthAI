@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import Layout from '../../components/Layout';
 import './Criativos.css';
 
-const PLATFORMS = ['instagram', 'facebook', 'google_ads', 'tiktok', 'linkedin'];
+const PLATFORMS = ['instagram', 'facebook', 'google_ads'];
 
 const OBJECTIVES: { value: string; label: string }[] = [
   { value: 'conversion', label: 'Conversão' },
