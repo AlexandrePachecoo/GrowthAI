@@ -1,8 +1,5 @@
 import puppeteer from 'puppeteer';
-import Anthropic from '@anthropic-ai/sdk';
 import sharp from 'sharp';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface CopyData {
   headline: string;
@@ -70,9 +67,8 @@ function wrapHTML(bodyHTML: string, css: string, w: number, h: number): string {
 <head>
 <meta charset="utf-8">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width:${w}px; height:${h}px; overflow:hidden; font-family:'Inter',-apple-system,Arial,sans-serif; }
+  html, body { width:${w}px; height:${h}px; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; }
   ${css}
 </style>
 </head>
@@ -336,7 +332,22 @@ function templateWatermark(copy: CopyData, style: NicheStyle, w: number, h: numb
     </div>`, css, w, h);
 }
 
-// ── AI landing page generation ────────────────────────────────────────────────
+// ── Template-based creative generation ───────────────────────────────────────
+
+const VARIANT_TEMPLATES = [templateDiagonal, templateCircle, templateFrame, templateSplit, templateWatermark];
+const CAROUSEL_TEMPLATES = [templateDiagonal, templateCircle, templateFrame, templateSplit];
+
+function makeNicheStyle(colors: string[]): NicheStyle {
+  const bg     = colors[0] ?? '#1a1a1a';
+  const accent = colors[1] ?? '#5B6AF5';
+  return {
+    name: 'custom',
+    bgColor: bg,
+    textColor: isColorDark(bg) ? '#FFFFFF' : '#0A0A0A',
+    accentColor: accent,
+    templateType: 'diagonal',
+  };
+}
 
 // ── Image processing ──────────────────────────────────────────────────────────
 
@@ -365,53 +376,16 @@ async function processLogo(base64: string): Promise<string> {
 }
 
 /**
- * Product image: ask Claude Vision for the main-subject bounding box,
- * then crop + lightly enhance with Sharp. Falls back to original on error.
+ * Product image: trim solid borders with Sharp. Falls back to original on error.
  */
 async function processProductImage(base64: string): Promise<string> {
   try {
-    const { data, mime } = extractBase64(base64);
-
-    // Ask Claude where the main subject is
-    const vision = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mime as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data },
-          },
-          {
-            type: 'text',
-            text: 'Return ONLY valid JSON — no markdown — with the bounding box of the most important/relevant product or subject in the image, as integer percentages: {"left":0,"top":0,"width":100,"height":100}. Add small padding so nothing is clipped.',
-          },
-        ],
-      }],
-    });
-
-    const raw = (vision.content[0] as { type: string; text: string }).text
-      .replace(/```(?:json)?\s*/gi, '')
-      .replace(/```/g, '')
-      .trim();
-    const bbox = JSON.parse(raw) as { left: number; top: number; width: number; height: number };
-
+    const { data } = extractBase64(base64);
     const buffer = Buffer.from(data, 'base64');
-    const meta = await sharp(buffer).metadata();
-    const imgW = meta.width  ?? 1000;
-    const imgH = meta.height ?? 1000;
-
-    const left   = Math.max(0, Math.round(imgW * bbox.left   / 100));
-    const top    = Math.max(0, Math.round(imgH * bbox.top    / 100));
-    const width  = Math.min(imgW - left, Math.round(imgW * bbox.width  / 100));
-    const height = Math.min(imgH - top,  Math.round(imgH * bbox.height / 100));
-
     const out = await sharp(buffer)
-      .extract({ left, top, width, height })
+      .trim({ threshold: 20 })
       .png()
       .toBuffer();
-
     return `data:image/png;base64,${out.toString('base64')}`;
   } catch {
     return base64;
@@ -434,141 +408,6 @@ function injectLogo(html: string, logo: string, pad: number): string {
   return html.replace('</body>', `${logoTag}</body>`);
 }
 
-const CAROUSEL_DIRECTIVES = [
-  `SLIDE 1 — Hero: same visual identity as the other slides.
-  - Background: color1 solid
-  - Slide number "01 / 04" top-right (small, color2, opacity 0.6)
-  - Center content: product name as small badge (border color2, text color2, border-radius 999px), then headline in large bold (font-size ~9% of height, textColor), then a pill CTA button (background color2, contrasting text)
-  - Decorative: large semi-transparent circle (color2, opacity 0.07) top-right corner`,
-
-  `SLIDE 2 — Feature: same visual identity as the other slides.
-  - Background: color2 solid
-  - Slide number "02 / 04" top-right (small, contrasting, opacity 0.6)
-  - Left-aligned content with generous padding: bold overline text ("Por que escolher?" in small caps, contrasting color), headline in large bold (contrasting to color2), body text below (opacity 0.75)
-  - Thin horizontal line (contrasting, 60px, 3px) between overline and headline`,
-
-  `SLIDE 3 — Benefits: same visual identity as the other slides.
-  - Background: color1 solid
-  - Slide number "03 / 04" top-right (small, color2, opacity 0.6)
-  - Centered content: headline in large bold (textColor), then 3 benefit lines derived from the body text, each prefixed by a colored bullet "●" (color2), evenly spaced
-  - Thin accent line below headline (color2, 50px, 3px)`,
-
-  `SLIDE 4 — CTA: same visual identity as the other slides.
-  - Background: color2 solid
-  - Slide number "04 / 04" top-right (small, contrasting, opacity 0.6)
-  - Center content: bold short phrase "Pronto para começar?" (large, contrasting), headline below (medium, contrasting, opacity 0.85), large pill CTA button (background color1, contrasting text, border-radius 999px, padding 16px 48px, font-weight 800)
-  - Decorative: large semi-transparent circle (color1, opacity 0.08) bottom-left corner`,
-];
-
-const LAYOUT_DIRECTIVES = [
-  `LAYOUT: Full-bleed centered hero.
-  - Background: color1 solid
-  - Top center: small pill badge (border 1.5px color2, text color2, border-radius 999px) with the product name
-  - Center: headline in very large bold font (font-size ~10% of height), textColor
-  - Below headline: body text (font-size ~1.8% of height), opacity 0.75
-  - Below body: pill CTA button (background color2, contrasting text, border-radius 999px, padding 14px 40px, font-weight 700)
-  - Decorative: two large semi-transparent circles (color2, opacity 0.08) top-right and bottom-left`,
-
-  `LAYOUT: Left-right vertical split.
-  - Left panel (45% width): solid color2, vertically centered, contains CTA text in large bold and a small subtitle line
-  - Right panel (55% width): color1, vertically centered, contains headline, body text, and solid rectangular CTA button (background color2, border-radius 8px)
-  - Thin vertical line (2px, semi-transparent) separates the panels`,
-
-  `LAYOUT: Elevated card on vivid background.
-  - Background: color2 solid with subtle dot grid (radial-gradient, 1px dots, 28px spacing)
-  - Center: card (border-radius 16px, box-shadow 0 24px 64px rgba(0,0,0,.35)) containing all content
-  - Inside card: overline text (color2, small, uppercase), headline (large bold), divider line (color2, 40px, 3px), body text, CTA button (background color2, border-radius 8px)`,
-
-  `LAYOUT: Bold top-band with content below.
-  - Top band (32% of height): solid color2, vertically centered CTA phrase in large bold (font-size ~7% of height, font-weight 900)
-  - Bottom section (68%): color1, left-aligned content with padding
-  - Bottom: headline (large bold, textColor), body text (opacity 0.7), CTA button (background color2, border-radius 6px)
-  - Thin horizontal line (color2, full width, 3px) separates band from bottom`,
-
-  `LAYOUT: Typographic poster.
-  - Background: color1 solid
-  - Behind content: first word of headline as HUGE decorative text (font-size ~55% of height, font-weight 900, color1 slightly lighter/darker, opacity 0.08, position absolute)
-  - Foreground left-aligned: small pill badge (border color2, color2 text), headline (large bold, textColor), thin accent line (color2, 50px, 3px), body text (opacity 0.68), outlined CTA button (border 2px color2, color2 text, transparent bg, border-radius 6px)`,
-];
-
-async function generateLandingPage(
-  copy: CopyData,
-  width: number,
-  height: number,
-  layoutIndex: number,
-  product: ProductInfo,
-  brand: BrandInfo,
-  mode: 'variants' | 'carousel' = 'variants',
-  userLogo?: string,
-  productImage?: string,
-): Promise<string> {
-  const palette   = brand.colors.length >= 2 ? brand.colors : ['#111827', '#5B6AF5', '#ffffff'];
-  const color1    = palette[0];
-  const color2    = palette[1] ?? palette[0];
-  const textColor = isColorDark(color1) ? '#FFFFFF' : '#0A0A0A';
-
-  const directives = mode === 'carousel' ? CAROUSEL_DIRECTIVES : LAYOUT_DIRECTIVES;
-  const layout = directives[layoutIndex]
-    .replace(/color1/g, color1)
-    .replace(/color2/g, color2)
-    .replace(/textColor/g, textColor);
-
-  const assetNotes: string[] = [];
-  if (productImage) {
-    assetNotes.push(`- A product image is available. Embed it using exactly this src: __PRODUCT_IMG__
-  Place it prominently in the layout (e.g. as a mockup/screenshot on one side, or centered above the CTA).
-  Style it with object-fit:contain, max-width/max-height that fits the design, and optionally a subtle drop-shadow or rounded corners.`);
-  }
-  if (userLogo) {
-    assetNotes.push(`- A brand logo is available. Embed it using exactly this src: __LOGO__
-  Place it at the top of the creative (top-left or top-center), small (height ~5% of total height), with object-fit:contain.`);
-  }
-  const assetSection = assetNotes.length
-    ? `\n--- ASSETS (use these placeholders as <img src="..."> — they will be replaced) ---\n${assetNotes.join('\n')}\n`
-    : '';
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: 'You output only a complete valid HTML document. No markdown, no code fences, no explanation. Never use Google Fonts or any external resources.',
-    messages: [{
-      role: 'user',
-      content: `Create an HTML page of exactly ${width}x${height}px.
-
---- CONTENT (use ONLY these texts — do NOT invent, add, or modify any copy, numbers, claims, or phrases) ---
-Product name: ${product.name || 'Product'}
-Headline: "${copy.headline}"
-Body text: "${copy.bodyText}"
-CTA button text: "${copy.cta}"
-
---- COLORS ---
-color1 (primary background): ${color1}
-color2 (accent / buttons): ${color2}
-text color on color1: ${textColor}
-${assetSection}
---- LAYOUT INSTRUCTIONS (follow exactly) ---
-${layout}
-
---- TECHNICAL REQUIREMENTS ---
-- CRITICAL: Every word of visible text in the HTML must come verbatim from the CONTENT section above. No extra slogans, numbers, percentages, claims, badges, or phrases of any kind.
-- Use ONLY system fonts: font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif
-- No external resources (no Google Fonts, no CDN). The only <img> tags allowed are the asset placeholders above.
-- html, body: width ${width}px; height ${height}px; margin 0; padding 0; overflow hidden
-- All text must be visible, inside bounds, with strong contrast against its background
-- Use inline <style> block only, no JavaScript
-
-Return ONLY the complete HTML document starting with <!DOCTYPE html>.`,
-    }],
-  });
-
-  let html = (response.content[0] as { type: string; text: string }).text.trim();
-  html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```$/, '').trim();
-
-  if (productImage) html = html.replace(/src="__PRODUCT_IMG__"/g, `src="${productImage}"`);
-  if (userLogo)     html = html.replace(/src="__LOGO__"/g, `src="${userLogo}"`);
-
-  return html;
-}
 
 // ── Puppeteer ─────────────────────────────────────────────────────────────────
 
@@ -588,6 +427,14 @@ async function renderCreative(html: string, width: number, height: number): Prom
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (req.resourceType() === 'font' || req.resourceType() === 'stylesheet') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
     await page.setViewport({ width, height, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await new Promise(r => setTimeout(r, 500));
@@ -605,17 +452,15 @@ export async function generateCampaignImages(
 ): Promise<Record<string, string[]>> {
   const {
     format = 'variants',
-    product = { name: '', audience: '', description: '' },
     brand   = { colors: [] },
     userLogo,
     userImages,
     userPalette,
   } = input;
 
-  // Pre-process images before generating creatives
   const [processedLogo, processedProductImage] = await Promise.all([
-    userLogo         ? processLogo(userLogo)                  : Promise.resolve(undefined),
-    userImages?.[0]  ? processProductImage(userImages[0])     : Promise.resolve(undefined),
+    userLogo        ? processLogo(userLogo)              : Promise.resolve(undefined),
+    userImages?.[0] ? processProductImage(userImages[0]) : Promise.resolve(undefined),
   ]);
 
   const entries = await Promise.all(
@@ -624,26 +469,25 @@ export async function generateCampaignImages(
       if (!copy) throw new Error(`Nenhuma copy para a plataforma: ${platform}`);
 
       const { width, height } = getDimensions(platform);
-      const mergedBrand: BrandInfo = { colors: userPalette?.length ? userPalette : brand.colors };
+      const colors = userPalette?.length ? userPalette : brand.colors.length ? brand.colors : ['#1a1a1a', '#5B6AF5'];
+      const style  = makeNicheStyle(colors);
+      const s      = getSizes(width, height);
 
-      if (format === 'carousel') {
-        const slides = await Promise.all(
-          [0, 1, 2, 3].map(i =>
-            generateLandingPage(copy, width, height, i, product, mergedBrand, 'carousel', processedLogo, processedProductImage),
-          ),
-        );
-        const images = await Promise.all(slides.map(html => renderCreative(html, width, height)));
-        return [platform, images] as [string, string[]];
-      }
+      const templates = format === 'carousel' ? CAROUSEL_TEMPLATES : VARIANT_TEMPLATES;
 
-      const variants = await Promise.all(
-        [0, 1, 2, 3, 4].map(async (i) => {
-          const html = await generateLandingPage(copy, width, height, i, product, mergedBrand, 'variants', processedLogo, processedProductImage);
+      const images = await Promise.all(
+        templates.map(async (tmpl) => {
+          let html = tmpl(copy, style, width, height);
+          if (processedLogo) html = injectLogo(html, processedLogo, s.pad);
+          if (processedProductImage) {
+            const imgTag = `<img src="${processedProductImage}" style="position:fixed;bottom:${Math.round(s.pad*0.4)}px;right:${Math.round(s.pad*0.4)}px;max-height:${Math.round(height*0.35)}px;max-width:${Math.round(width*0.3)}px;object-fit:contain;z-index:10;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.25));" />`;
+            html = html.replace('</body>', `${imgTag}</body>`);
+          }
           return renderCreative(html, width, height);
         }),
       );
 
-      return [platform, variants] as [string, string[]];
+      return [platform, images] as [string, string[]];
     }),
   );
 

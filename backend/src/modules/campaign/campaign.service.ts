@@ -29,19 +29,24 @@ async function generateForPlatform(input: CampaignInput, platform: string): Prom
         content: `Você é um especialista em marketing digital e copywriting.
 Gere copies persuasivos e criativos para campanhas de anúncios.
 
+IDIOMA — REGRA ABSOLUTA:
+- Os campos headline, bodyText, cta e hashtags devem ser SEMPRE em português do Brasil (pt-BR), independente da plataforma.
+- Somente o campo imagePrompt deve ser escrito em inglês.
+- Nunca escreva headline, bodyText, cta ou hashtags em inglês.
+
 REGRAS OBRIGATÓRIAS:
 - Use APENAS as informações fornecidas pelo usuário. Nunca invente benefícios, prêmios, promoções ou funcionalidades que não foram mencionados.
 - Se uma informação não foi fornecida, não a inclua na copy.
 - Seja criativo na forma de escrever, mas fiel aos fatos fornecidos.
 
-REGRAS PARA O CAMPO imagePrompt:
+REGRAS PARA O CAMPO imagePrompt (em inglês):
 O imagePrompt descreve o CONTEXTO VISUAL E O NICHO do produto — será usado por um designer de IA para criar o criativo. Siga estas diretrizes obrigatórias:
 - Identifique o nicho do produto (ex: fitness, fintech, moda, alimentação, SaaS, beleza, educação, viagem, games, saúde, imóveis)
 - OBRIGATÓRIO: indique 2 a 3 cores VIBRANTES e ESPECÍFICAS que representam esse nicho (ex: "electric orange and deep charcoal" para fitness, "neon purple and cyan" para games, "rose gold and blush pink" para beleza)
 - NUNCA sugira cores neutras como cinza, bege, off-white, navy genérico ou preto simples como cores principais
 - NUNCA inclua pessoas, rostos, animais ou fotografias
 - Descreva elementos visuais do nicho: texturas, formas, objetos abstratos, padrões
-- O prompt deve ser em inglês, com 2 a 3 linhas
+- 2 a 3 linhas em inglês
 - Exemplo fitness: "Electric orange and neon green color scheme. Bold geometric shapes, dynamic diagonal lines, athletic energy"
 - Exemplo beauty: "Rose gold and hot pink palette. Soft fluid organic shapes, glossy reflections, luxurious feel"
 

@@ -8,6 +8,7 @@ import campaignRoutes from './modules/campaign/campaign.routes';
 import campaignsRoutes from './modules/campaigns/campaigns.routes';
 import metaRoutes from './modules/meta/meta.routes';
 import googleRoutes from './modules/google/google.routes';
+import profileRoutes from './modules/profile/profile.routes';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/campaign', campaignRoutes);
 app.use('/campaigns', campaignsRoutes);
 app.use('/meta', metaRoutes);
 app.use('/google', googleRoutes);
+app.use('/profile', profileRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'GrowthAi API running!' });
